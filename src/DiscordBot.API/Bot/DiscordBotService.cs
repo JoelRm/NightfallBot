@@ -46,6 +46,11 @@ public class DiscordBotService : BackgroundService
 
         if (string.IsNullOrWhiteSpace(token))
         {
+            var configToken = _configuration["Discord:Token"];
+            var envToken = Environment.GetEnvironmentVariable("Discord__Token");
+
+            Console.WriteLine($"Config token exists: {!string.IsNullOrWhiteSpace(configToken)}");
+            Console.WriteLine($"Env token exists: {!string.IsNullOrWhiteSpace(envToken)}");
             throw new Exception("No se encontró el token de Discord");
         }
 
