@@ -41,17 +41,22 @@ public class DiscordBotService : BackgroundService
 
         if (string.IsNullOrWhiteSpace(token))
         {
+            token = Environment.GetEnvironmentVariable("DISCORD__TOKEN");
+        }
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
             token = Environment.GetEnvironmentVariable("Discord__Token");
         }
-        
+
         Console.WriteLine($"Config token exists: {!string.IsNullOrWhiteSpace(_configuration["Discord:Token"])}");
-        Console.WriteLine($"Env token exists: {!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("Discord__Token"))}");
+        Console.WriteLine($"Env DISCORD__TOKEN exists: {!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISCORD__TOKEN"))}");
+        Console.WriteLine($"Env Discord__Token exists: {!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("Discord__Token"))}");
 
         if (string.IsNullOrWhiteSpace(token))
         {
             throw new Exception("No se encontró el token de Discord");
         }
-
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
 
