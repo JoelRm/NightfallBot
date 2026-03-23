@@ -1,0 +1,40 @@
+# Build
+bin/
+obj/
+
+# Rider / VSCode
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# appsettings
+appsettings.Development.json
+appsettings.Production.json
+
+# backups
+backups/
+
+# publish
+publish/
+
+# node
+node_modules/
+
+# secrets
+*.env
+*.vs
+
+# config sensibles
+appsettings.json
+appsettings.Development.json
+appsettings.Local.json
+
+# si está dentro del proyecto API
+src/DiscordBot.API/appsettings.json
+src/DiscordBot.API/appsettings.Development.json
+src/DiscordBot.API/appsettings.Local.json
