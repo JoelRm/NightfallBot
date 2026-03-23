@@ -40,7 +40,14 @@ public class DiscordBotService : BackgroundService
         var token = _configuration["Discord:Token"];
 
         if (string.IsNullOrWhiteSpace(token))
-            throw new Exception("No se encontró el token de Discord en appsettings.json");
+        {
+            token = Environment.GetEnvironmentVariable("Discord__Token");
+        }
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("No se encontró el token de Discord");
+        }
 
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
