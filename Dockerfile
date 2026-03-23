@@ -3,7 +3,7 @@ WORKDIR /src
 
 COPY . .
 
-RUN dotnet restore
+RUN dotnet restore DiscordBotSolution.sln
 RUN dotnet publish src/DiscordBot.API/DiscordBot.API.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
