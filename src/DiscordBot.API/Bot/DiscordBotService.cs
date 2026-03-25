@@ -5,6 +5,7 @@ using DiscordBot.Application.Interfaces.Services;
 using DiscordBot.Domain.DTOs;
 using DiscordBot.Domain.Entities;
 using DiscordBot.Utilities.Helpers;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -52,6 +53,7 @@ public class DiscordBotService : BackgroundService
         {
             throw new Exception("No se encontró el token de Discord");
         }
+
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
 
@@ -64,6 +66,64 @@ public class DiscordBotService : BackgroundService
         return Task.CompletedTask;
     }
 
+    private HashSet<ulong> ObtenerCanalesComandosIds()
+    {
+        var result = new HashSet<ulong>();
+
+        var idsConfig = _configuration.GetSection("Discord:CommandChannelIds").Get<string[]>();
+        if (idsConfig != null)
+        {
+            foreach (var id in idsConfig)
+            {
+                if (ulong.TryParse(id, out var channelId))
+                    result.Add(channelId);
+            }
+        }
+
+        var envUpper = Environment.GetEnvironmentVariable("DISCORD__COMMANDCHANNELIDS");
+        if (!string.IsNullOrWhiteSpace(envUpper))
+        {
+            var partes = envUpper.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var parte in partes)
+            {
+                if (ulong.TryParse(parte, out var channelId))
+                    result.Add(channelId);
+            }
+        }
+
+        var envPascal = Environment.GetEnvironmentVariable("Discord__CommandChannelIds");
+        if (!string.IsNullOrWhiteSpace(envPascal))
+        {
+            var partes = envPascal.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var parte in partes)
+            {
+                if (ulong.TryParse(parte, out var channelId))
+                    result.Add(channelId);
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<bool> ValidarCanalComandoAsync(SocketMessage message)
+    {
+        var canalesPermitidos = ObtenerCanalesComandosIds();
+
+        if (canalesPermitidos.Count == 0)
+            return true;
+
+        if (canalesPermitidos.Contains(message.Channel.Id))
+            return true;
+
+        var primerCanalId = canalesPermitidos.First();
+        var mencionCanal = $"<#{primerCanalId}>";
+
+        await message.Channel.SendMessageAsync(
+            $"⚠️ Este comando solo puede usarse en {mencionCanal}.");
+
+        return false;
+    }
+
     private async Task MessageReceivedAsync(SocketMessage message)
     {
         try
@@ -74,6 +134,11 @@ public class DiscordBotService : BackgroundService
             var content = message.Content.Trim();
 
             if (string.IsNullOrWhiteSpace(content))
+                return;
+
+            var esComando = content.StartsWith("!");
+
+            if (esComando && !await ValidarCanalComandoAsync(message))
                 return;
 
             if (content.Equals("hola", StringComparison.OrdinalIgnoreCase))
@@ -189,6 +254,7 @@ public class DiscordBotService : BackgroundService
                 await ProcesarGuildStatsImgAsync(message);
                 return;
             }
+
             if (content.StartsWith("!culvert0", StringComparison.OrdinalIgnoreCase))
             {
                 await ProcesarCulvertCeroAsync(message, content);
@@ -980,20 +1046,22 @@ public class DiscordBotService : BackgroundService
 
         await message.Channel.SendMessageAsync(embed: embed);
     }
+
     private (int anio, int semana) ObtenerAnioSemana(DateTime fecha)
     {
-        var cultura = System.Globalization.CultureInfo.CurrentCulture;
+        var cultura = CultureInfo.CurrentCulture;
         var calendario = cultura.Calendar;
 
         var semana = calendario.GetWeekOfYear(
             fecha,
-            System.Globalization.CalendarWeekRule.FirstFourDayWeek,
+            CalendarWeekRule.FirstFourDayWeek,
             DayOfWeek.Monday);
 
         var anio = fecha.Year;
 
         return (anio, semana);
     }
+
     private static RegistroInput ParsearLineaRegistro(string linea)
     {
         if (string.IsNullOrWhiteSpace(linea))
