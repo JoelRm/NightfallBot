@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using DiscordBot.API.Bot;
 using DiscordBot.Infrastructure;
 using System.Collections;
@@ -39,8 +41,16 @@ Console.WriteLine("=== ENV TEST END ===");
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
+builder.Services.AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
+{
+    GatewayIntents = GatewayIntents.Guilds |
+                     GatewayIntents.GuildMessages |
+                     GatewayIntents.MessageContent
+}));
+
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<DiscordBotService>();
+builder.Services.AddHostedService<CulvertReminderService>();
 
 var app = builder.Build();
 await app.RunAsync();

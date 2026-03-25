@@ -18,17 +18,12 @@ public class DiscordBotService : BackgroundService
 
     public DiscordBotService(
         IConfiguration configuration,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        DiscordSocketClient client)
     {
         _configuration = configuration;
         _serviceProvider = serviceProvider;
-
-        _client = new DiscordSocketClient(new DiscordSocketConfig
-        {
-            GatewayIntents = GatewayIntents.Guilds |
-                             GatewayIntents.GuildMessages |
-                             GatewayIntents.MessageContent
-        });
+        _client = client;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

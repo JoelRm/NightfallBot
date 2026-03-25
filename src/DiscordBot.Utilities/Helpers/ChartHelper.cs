@@ -1,10 +1,11 @@
 using DiscordBot.Domain.DTOs;
+using System.Globalization;
 using System.Text.Json;
-using static System.Net.WebRequestMethods;
 
 public static class ChartHelper
 {
     private static readonly HttpClient _http = new HttpClient();
+
     public static string BuildCulvertProgressBarChartUrl(
         IEnumerable<PersonajeProgresoDto> progreso,
         string nombrePersonaje)
@@ -23,8 +24,6 @@ public static class ChartHelper
         var first = ordered.First();
         var last = ordered.Last();
 
-        // Si tiene menos de 10 registros históricos, anclamos la ventana en la primera semana real
-        // para que se vean barras grises al inicio.
         bool tieneMenosDe10Registros = ordered.Count < 10;
 
         int startAnio;
@@ -32,13 +31,10 @@ public static class ChartHelper
 
         if (tieneMenosDe10Registros)
         {
-            // Queremos que la primera semana real quede más a la derecha,
-            // así aparecen huecos grises al inicio.
             (startAnio, startSemana) = RestarSemanas(first.Anio, first.Semana, 10 - ordered.Count);
         }
         else
         {
-            // Ventana normal: últimas 10 semanas calendario desde la última real
             (startAnio, startSemana) = RestarSemanas(last.Anio, last.Semana, 9);
         }
 
@@ -82,7 +78,7 @@ public static class ChartHelper
             .DefaultIfEmpty(100)
             .Max();
 
-        var emptyBarValue = Math.Max(1, (int)(maxRealValue * 0.03));
+        var emptyBarValue = Math.Max(1, (int)(maxRealValue * 0.012));
 
         var values = ultimas
             .Select(x => x.CulvertScore == 0 ? emptyBarValue : x.CulvertScore)
@@ -90,14 +86,18 @@ public static class ChartHelper
 
         var backgroundColors = ultimas
             .Select(x => x.CulvertScore == 0
-                ? "rgba(107, 114, 128, 0.55)"
-                : "rgba(147, 51, 234, 0.80)")
+                ? "rgba(107, 114, 128, 0.45)"
+                : "rgba(147, 51, 234, 0.85)")
             .ToList();
 
         var borderColors = ultimas
             .Select(x => x.CulvertScore == 0
-                ? "rgba(156, 163, 175, 0.9)"
+                ? "rgba(156, 163, 175, 0.85)"
                 : "rgba(168, 85, 247, 1)")
+            .ToList();
+
+        var formattedLabels = ultimas
+            .Select(x => x.CulvertScore == 0 ? "" : FormatCompact(x.CulvertScore))
             .ToList();
 
         var chartConfig = new
@@ -115,7 +115,25 @@ public static class ChartHelper
                         backgroundColor = backgroundColors,
                         borderColor = borderColors,
                         borderWidth = 2,
-                        borderRadius = 6
+                        borderRadius = 6,
+                        barThickness = 52,
+                        maxBarThickness = 52,
+                        categoryPercentage = 0.95,
+                        barPercentage = 1.0,
+                        datalabels = new
+                        {
+                            display = true,
+                            anchor = "end",
+                            align = "top",
+                            offset = 6,
+                            color = "#E5E7EB",
+                            font = new
+                            {
+                                size = 11,
+                                weight = "bold"
+                            },
+                            formatter = "__DATALABELS_FORMATTER__"
+                        }
                     }
                 }
             },
@@ -123,10 +141,21 @@ public static class ChartHelper
             {
                 responsive = true,
                 animation = false,
+                layout = new
+                {
+                    padding = new
+                    {
+                        top = 20,
+                        right = 10,
+                        left = 10,
+                        bottom = 0
+                    }
+                },
                 plugins = new
                 {
                     legend = new
                     {
+                        display = true,
                         labels = new
                         {
                             color = "#D1D5DB"
@@ -162,9 +191,11 @@ public static class ChartHelper
                     y = new
                     {
                         beginAtZero = true,
+                        grace = "8%",
                         ticks = new
                         {
-                            color = "#D1D5DB"
+                            color = "#D1D5DB",
+                            callback = "__Y_TICKS_CALLBACK__"
                         },
                         grid = new
                         {
@@ -176,9 +207,20 @@ public static class ChartHelper
         };
 
         var json = JsonSerializer.Serialize(chartConfig);
+
+        json = json.Replace(
+            "\"__DATALABELS_FORMATTER__\"",
+            $"function(value, context) {{ var labels = {JsonSerializer.Serialize(formattedLabels)}; return labels[context.dataIndex]; }}"
+        );
+
+        json = json.Replace(
+            "\"__Y_TICKS_CALLBACK__\"",
+            "function(value) { if (value >= 1000000) return (value/1000000).toFixed(1).replace('.', ',') + 'M'; if (value >= 1000) return (value/1000).toFixed(1).replace('.', ',') + 'k'; return value; }"
+        );
+
         var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        return $"https://quickchart.io/chart?width=900&height=420&backgroundColor=%232b2d31&c={Uri.EscapeDataString(json)}&v={version}";
+        return $"https://quickchart.io/chart?width=900&height=420&backgroundColor=%232b2d31&plugins=chartjs-plugin-datalabels&c={Uri.EscapeDataString(json)}&v={version}";
     }
 
     private static (int anio, int semana) RestarSemanas(int anio, int semana, int cantidad)
@@ -207,6 +249,7 @@ public static class ChartHelper
 
         return (anio, semana);
     }
+
     public static async Task<Stream?> DownloadChartAsync(string chartUrl)
     {
         try
@@ -218,5 +261,16 @@ public static class ChartHelper
         {
             return null;
         }
+    }
+
+    private static string FormatCompact(long value)
+    {
+        if (value >= 1_000_000)
+            return (value / 1_000_000.0).ToString("0.#", CultureInfo.InvariantCulture).Replace(".", ",") + "M";
+
+        if (value >= 1_000)
+            return (value / 1_000.0).ToString("0.#", CultureInfo.InvariantCulture).Replace(".", ",") + "k";
+
+        return value.ToString(CultureInfo.InvariantCulture);
     }
 }

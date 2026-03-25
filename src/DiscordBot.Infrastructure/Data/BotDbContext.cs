@@ -16,6 +16,7 @@ public class BotDbContext : DbContext
     public DbSet<MovimientoMonedas> MovimientosMonedas => Set<MovimientoMonedas>();
     public DbSet<GuildTiendaItem> GuildTiendaItems { get; set; }
     public DbSet<GuildTiendaCompra> GuildTiendaCompras { get; set; }
+    public DbSet<RecordatorioConfig> RecordatoriosConfig => Set<RecordatorioConfig>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -284,6 +285,28 @@ public class BotDbContext : DbContext
             entity.HasOne(e => e.Personaje)
                 .WithMany()
                 .HasForeignKey(e => e.IdPersonaje);
+        });
+
+        modelBuilder.Entity<RecordatorioConfig>(entity =>
+        {
+            entity.ToTable("recordatorio_config");
+            entity.HasKey(e => e.IdRecordatorio);
+
+            entity.Property(e => e.IdRecordatorio).HasColumnName("id_recordatorio");
+            entity.Property(e => e.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CanalId).HasColumnName("canal_id").IsRequired();
+            entity.Property(e => e.RolMencion).HasColumnName("rol_mencion").HasMaxLength(100);
+            entity.Property(e => e.Mensaje).HasColumnName("mensaje").HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.DiaSemana).HasColumnName("dia_semana").IsRequired();
+            entity.Property(e => e.Hora).HasColumnName("hora").IsRequired();
+            entity.Property(e => e.Minuto).HasColumnName("minuto").IsRequired();
+            entity.Property(e => e.ZonaHoraria).HasColumnName("zona_horaria").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Activo).HasColumnName("activo").IsRequired();
+            entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion").IsRequired();
+
+            entity.HasIndex(e => e.Nombre)
+                .IsUnique()
+                .HasDatabaseName("ux_recordatorio_nombre");
         });
     }
 }

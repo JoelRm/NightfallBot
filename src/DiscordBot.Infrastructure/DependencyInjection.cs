@@ -31,6 +31,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IPersonajeRepository, PersonajeRepository>();
+        services.AddScoped<IRecordatorioRepository, RecordatorioRepository>();
         services.AddScoped<ICharacterImageService, MapleBotImageService>();
         services.AddScoped<IGuildDashboardService, GuildDashboardService>();
 
