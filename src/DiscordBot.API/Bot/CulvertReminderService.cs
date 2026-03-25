@@ -81,7 +81,7 @@ public class CulvertReminderService : BackgroundService
 
                 if (!string.IsNullOrWhiteSpace(config.RolMencion))
                 {
-                    mensaje = $"{config.RolMencion} {mensaje}";
+                    mensaje = $"{config.RolMencion}\n\n{mensaje}";
                 }
 
                 await canal.SendMessageAsync(mensaje);
