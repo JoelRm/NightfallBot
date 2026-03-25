@@ -33,6 +33,16 @@ public class DiscordBotService : BackgroundService
         _client.Ready += ReadyAsync;
         _client.MessageReceived += MessageReceivedAsync;
 
+        Console.WriteLine("=== BOT START ===");
+
+        Console.WriteLine("TOKEN CONFIG: " + _configuration["Discord:Token"]);
+        Console.WriteLine("TOKEN ENV: " + Environment.GetEnvironmentVariable("DISCORD__TOKEN"));
+
+        Console.WriteLine(
+            "COMMAND IDS ENV: " +
+            Environment.GetEnvironmentVariable("DISCORD__COMMANDCHANNELIDS")
+        );
+
         var token = _configuration["Discord:Token"];
 
         if (string.IsNullOrWhiteSpace(token))
