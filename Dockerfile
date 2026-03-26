@@ -9,11 +9,11 @@ RUN dotnet publish src/DiscordBot.API/DiscordBot.API.csproj -c Release -o /app/p
     --self-contained false \
     /p:PublishTrimmed=false
 
-# Stage 2: Runtime mínimo con Playwright
+# Stage 2: Runtime
 FROM mcr.microsoft.com/playwright/dotnet:v1.52.0-noble AS runtime
 WORKDIR /app
 
-# Instalar solo el runtime de .NET 10 (no el SDK completo)
+# 1. Primero instalar .NET 10 runtime
 RUN apt-get update && apt-get install -y wget ca-certificates && \
     wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && \
     chmod +x dotnet-install.sh && \
@@ -23,11 +23,11 @@ RUN apt-get update && apt-get install -y wget ca-certificates && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-ENV PATH="$PATH:/usr/local/dotnet"
+ENV PATH="/usr/local/dotnet:$PATH"
 ENV DOTNET_ROOT="/usr/local/dotnet"
 
-# Solo instalar chromium (no firefox ni webkit)
-RUN pwsh -Command "playwright install chromium" 
+# 2. Luego instalar chromium (ahora pwsh puede encontrar .NET 8 que ya viene en la imagen base)
+RUN pwsh -Command "playwright install chromium"
 
 COPY --from=build /app/publish .
 
