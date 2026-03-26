@@ -13,20 +13,15 @@ RUN dotnet publish src/DiscordBot.API/DiscordBot.API.csproj -c Release -o /app/p
 FROM mcr.microsoft.com/playwright/dotnet:v1.52.0-noble AS runtime
 WORKDIR /app
 
-# 1. Primero instalar .NET 10 runtime
-RUN apt-get update && apt-get install -y wget ca-certificates && \
-    wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && \
+# Instalar .NET 10 runtime EN la misma carpeta que ya tiene .NET 8
+# Así pwsh sigue encontrando .NET 8 y tu app usa .NET 10
+RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && \
     chmod +x dotnet-install.sh && \
-    ./dotnet-install.sh --channel 10.0 --runtime aspnetcore --install-dir /usr/local/dotnet && \
+    ./dotnet-install.sh --channel 10.0 --runtime aspnetcore --install-dir /usr/share/dotnet && \
     rm dotnet-install.sh && \
-    apt-get remove -y wget && \
-    apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/usr/local/dotnet:$PATH"
-ENV DOTNET_ROOT="/usr/local/dotnet"
-
-# 2. Luego instalar chromium (ahora pwsh puede encontrar .NET 8 que ya viene en la imagen base)
+# Instalar chromium (pwsh ahora encuentra .NET 8 en /usr/share/dotnet)
 RUN pwsh -Command "playwright install chromium"
 
 COPY --from=build /app/publish .
