@@ -9,19 +9,26 @@ RUN dotnet publish src/DiscordBot.API/DiscordBot.API.csproj -c Release -o /app/p
     --self-contained false \
     /p:PublishTrimmed=false
 
-# Stage 2: Runtime
-FROM mcr.microsoft.com/playwright/dotnet:v1.52.0-noble AS runtime
+# Stage 2: Runtime minimalista
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 
-# Instalar .NET 10 en la misma carpeta que .NET 8
-RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && \
-    chmod +x dotnet-install.sh && \
-    ./dotnet-install.sh --channel 10.0 --runtime aspnetcore --install-dir /usr/share/dotnet && \
-    rm dotnet-install.sh
+# Instalar dependencias de Chromium + PowerShell
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Dependencias de Chromium headless
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+    libgbm1 libxkbcommon0 libpango-1.0-0 libcairo2 \
+    libasound2t64 libwayland-client0 libxshmfence1 \
+    libx11-xcb1 libxcb-dri3-0 fonts-liberation \
+    # PowerShell para ejecutar playwright.ps1
+    powershell \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 
-# Instalar chromium usando el playwright.ps1 que viene con tu app publicada
+# Instalar solo chromium usando el script de tu app
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN pwsh playwright.ps1 install chromium
 
 ENTRYPOINT ["dotnet", "DiscordBot.API.dll"]
