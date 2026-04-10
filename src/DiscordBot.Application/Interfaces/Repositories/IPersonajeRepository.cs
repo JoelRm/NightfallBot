@@ -27,5 +27,5 @@ public interface IPersonajeRepository
     Task<CompraResultadoDto> ComprarItemAsync(string nombrePersonaje, string nombreItem, string usuarioCompra);
     Task<GuildStatsDto> ObtenerGuildStatsAsync();
     Task<string?> ObtenerProgresoPersonajeAsync(string nombrePersonaje);
-    Task<List<PersonajeCulvertCeroDto>> ObtenerSinCulvertPorSemanaAsync(int anio, int semana);
+    Task<List<CulvertCeroRachaDto>> ObtenerRachaCulvertCeroAsync(int minimoSemanas);
 }

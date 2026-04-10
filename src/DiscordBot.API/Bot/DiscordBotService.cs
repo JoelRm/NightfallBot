@@ -1011,65 +1011,45 @@ public class DiscordBotService : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IPersonajeRepository>();
 
-        int anio;
-        int semana;
+        int minimoSemanas = 3;
 
         var partes = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        if (partes.Length == 2 && partes[1].Equals("prev", StringComparison.OrdinalIgnoreCase))
+        // Permite: !culvert0 3  => mostrar solo los que llevan 3 o más semanas seguidas en 0
+        if (partes.Length == 2 && int.TryParse(partes[1], out var minParam) && minParam > 0)
         {
-            (anio, semana) = ObtenerAnioSemana(DateTime.Now.AddDays(-7));
-        }
-        else if (partes.Length == 3
-            && int.TryParse(partes[1], out var anioParam)
-            && int.TryParse(partes[2], out var semanaParam))
-        {
-            anio = anioParam;
-            semana = semanaParam;
-        }
-        else
-        {
-            (anio, semana) = ObtenerAnioSemana(DateTime.Now);
+            minimoSemanas = minParam;
         }
 
-        var lista = await repo.ObtenerSinCulvertPorSemanaAsync(anio, semana);
+        var lista = await repo.ObtenerRachaCulvertCeroAsync(minimoSemanas);
 
         if (!lista.Any())
         {
             await message.Channel.SendMessageAsync(
-                $"✅ Todos hicieron Culvert en la semana {semana}/{anio}.");
+                $"✅ No hay personajes con {minimoSemanas} o más semanas seguidas sin hacer Culvert.");
             return;
         }
 
-        var texto = string.Join("\n", lista.Select(x =>
-            $"• {x.Nombre} Lv{x.Level} {x.Clase}"));
+        var lineas = lista.Select(x =>
+        {
+            var textoSemanas = x.SemanasConsecutivas == 1 ? "1 semana" : $"{x.SemanasConsecutivas} semanas";
 
-        if (texto.Length > 1800)
-            texto = texto[..1800] + "\n...";
+            return $"• **{x.Nombre}** - No realizó culvert desde hace {textoSemanas}";
+        });
+
+        var texto = string.Join("\n", lineas);
+
+        if (texto.Length > 3800)
+            texto = texto[..3800] + "\n...";
 
         var embed = new EmbedBuilder()
-            .WithTitle($"Personajes sin Culvert - Semana {semana}/{anio}")
+            .WithTitle("⚠️ Personajes sin culvert por varias semanas")
             .WithDescription(texto)
-            .WithColor(Color.Red)
-            .WithFooter($"Total: {lista.Count}")
+            .WithColor(Color.Orange)
+            .WithFooter($"Total: {lista.Count} | Filtro: {minimoSemanas}+ semanas seguidas")
             .Build();
 
         await message.Channel.SendMessageAsync(embed: embed);
-    }
-
-    private (int anio, int semana) ObtenerAnioSemana(DateTime fecha)
-    {
-        var cultura = CultureInfo.CurrentCulture;
-        var calendario = cultura.Calendar;
-
-        var semana = calendario.GetWeekOfYear(
-            fecha,
-            CalendarWeekRule.FirstFourDayWeek,
-            DayOfWeek.Monday);
-
-        var anio = fecha.Year;
-
-        return (anio, semana);
     }
 
     private static RegistroInput ParsearLineaRegistro(string linea)

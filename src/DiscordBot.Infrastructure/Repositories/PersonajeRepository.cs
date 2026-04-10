@@ -2,6 +2,7 @@ using DiscordBot.Application.Interfaces.Repositories;
 using DiscordBot.Domain.DTOs;
 using DiscordBot.Domain.Entities;
 using DiscordBot.Infrastructure.Data;
+using DiscordBot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscordBot.Infrastructure.Repositories;
@@ -551,23 +552,50 @@ public class PersonajeRepository : IPersonajeRepository
     Tendencia: {tendencia}
     """;
     }
-    public async Task<List<PersonajeCulvertCeroDto>> ObtenerSinCulvertPorSemanaAsync(int anio, int semana)
+
+    public async Task<List<CulvertCeroRachaDto>> ObtenerRachaCulvertCeroAsync(int minimoSemanas)
     {
-        return await _context.Personajes
-            .Where(p => !_context.RegistrosSemanalesCulvert.Any(r =>
-                r.IdPersonaje == p.IdPersonaje &&
-                r.Anio == anio &&
-                r.Semana == semana &&
-                r.CulvertScore > 0))
-            .Select(p => new PersonajeCulvertCeroDto
+        var data = await _context.Personajes
+            .Where(p => p.Activo)
+            .Select(p => new
             {
-                IdPersonaje = p.IdPersonaje,
-                Nombre = p.NombrePersonaje,
-                Level = p.Level,
-                Clase = p.Clase,
-                PuntosActuales = p.PuntosActuales
+                p.NombrePersonaje,
+                Registros = _context.RegistrosSemanalesCulvert
+                    .Where(r => r.IdPersonaje == p.IdPersonaje)
+                    .OrderByDescending(r => r.Anio)
+                    .ThenByDescending(r => r.Semana)
+                    .Select(r => r.CulvertScore)
+                    .ToList()
             })
-            .OrderBy(p => p.Nombre)
             .ToListAsync();
+
+        var resultado = new List<CulvertCeroRachaDto>();
+
+        foreach (var item in data)
+        {
+            int contador = 0;
+
+            foreach (var score in item.Registros)
+            {
+                if (score == 0)
+                    contador++;
+                else
+                    break; // rompe cuando encuentra uno > 0
+            }
+
+            if (contador >= minimoSemanas)
+            {
+                resultado.Add(new CulvertCeroRachaDto
+                {
+                    Nombre = item.NombrePersonaje,
+                    SemanasConsecutivas = contador
+                });
+            }
+        }
+
+        return resultado
+            .OrderByDescending(x => x.SemanasConsecutivas)
+            .ThenBy(x => x.Nombre)
+            .ToList();
     }
 }
