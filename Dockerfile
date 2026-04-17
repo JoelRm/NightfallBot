@@ -9,21 +9,35 @@ RUN dotnet publish src/DiscordBot.API/DiscordBot.API.csproj -c Release -o /app/p
     --self-contained false \
     /p:PublishTrimmed=false
 
-# Stage 2: Runtime minimalista
+# Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 
-# Instalar dependencias de Chromium headless
+# Dependencias para Chromium / Playwright en Ubuntu 24.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-    libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
-    libgbm1 libxkbcommon0 libpango-1.0-0 libcairo2 \
-    libasound2 libwayland-client0 libxshmfence1 \
-    libx11-xcb1 libxcb-dri3-0 fonts-liberation \
-    wget ca-certificates \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2t64 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2t64 \
+    libwayland-client0 \
+    libxshmfence1 \
+    libx11-xcb1 \
+    libxcb-dri3-0 \
+    fonts-liberation \
+    wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar PowerShell desde el repo oficial de Microsoft
+# Instalar PowerShell
 RUN wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb && \
     dpkg -i packages-microsoft-prod.deb && \
     rm packages-microsoft-prod.deb && \
@@ -32,8 +46,9 @@ RUN wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsof
 
 COPY --from=build /app/publish .
 
-# Instalar solo chromium
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN pwsh playwright.ps1 install chromium
+
+# Instalar Chromium de Playwright
+RUN pwsh ./playwright.ps1 install chromium
 
 ENTRYPOINT ["dotnet", "DiscordBot.API.dll"]
