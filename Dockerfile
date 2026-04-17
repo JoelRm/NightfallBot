@@ -13,7 +13,12 @@ RUN dotnet publish src/DiscordBot.API/DiscordBot.API.csproj -c Release -o /app/p
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 
-# Dependencias para Chromium / Playwright en Ubuntu 24.04
+# Forzar IPv4 y HTTPS para evitar timeouts de APT
+RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.conf.d/99force-ipv4 && \
+    sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources && \
+    sed -i 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+
+# Dependencias Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 \
     libatk1.0-0 \
@@ -47,8 +52,6 @@ RUN wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsof
 COPY --from=build /app/publish .
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-
-# Instalar Chromium de Playwright
 RUN pwsh ./playwright.ps1 install chromium
 
 ENTRYPOINT ["dotnet", "DiscordBot.API.dll"]
