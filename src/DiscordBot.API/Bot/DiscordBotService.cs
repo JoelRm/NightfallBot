@@ -917,6 +917,8 @@ public class DiscordBotService : BackgroundService
             return;
         }
 
+
+
         var grupos = items.GroupBy(x => x.Categoria);
 
         var bloques = grupos.Select(g =>
