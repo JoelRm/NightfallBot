@@ -924,7 +924,16 @@ public class DiscordBotService : BackgroundService
             var lineas = g.Select(x =>
             {
                 var stockTexto = x.Stock.HasValue ? $" | Stock: {x.Stock}" : "";
-                return $"• {x.NombreItem} — {x.CostoPuntos} pts{(x.CostoMonedas > 0 ? $" | {x.CostoMonedas} monedas" : "")}{stockTexto}";
+
+                var descripcionTexto =
+                    !string.IsNullOrWhiteSpace(x.Descripcion) && x.Descripcion != "0"
+                    ? $" |  📝 {x.Descripcion}"
+                    : "";
+
+                return $"• **{x.NombreItem}** — {x.CostoPuntos} pts" +
+                       $"{(x.CostoMonedas > 0 ? $" | {x.CostoMonedas} monedas" : "")}" +
+                       $"{stockTexto}" +
+                       $"{descripcionTexto}";
             });
 
             return $"**{g.Key}**\n" + string.Join("\n", lineas);
