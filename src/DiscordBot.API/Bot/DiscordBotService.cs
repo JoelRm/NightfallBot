@@ -398,13 +398,13 @@ public class DiscordBotService : BackgroundService
 
         if (progreso.Any())
         {
-            var chartUrl = ChartHelper.BuildCulvertProgressBarChartUrl(
+            var chartConfigJson = ChartHelper.BuildCulvertProgressBarChartConfig(
                 progreso,
                 stats.NombrePersonaje);
 
-            if (!string.IsNullOrWhiteSpace(chartUrl))
+            if (!string.IsNullOrWhiteSpace(chartConfigJson))
             {
-                chartStream = await ChartHelper.DownloadChartAsync(chartUrl);
+                chartStream = await ChartHelper.DownloadChartAsync(chartConfigJson);
 
                 if (chartStream != null)
                 {

@@ -1,14 +1,15 @@
 using DiscordBot.Domain.DTOs;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
+using static System.Net.WebRequestMethods;
 
 public static class ChartHelper
 {
     private static readonly HttpClient _http = new HttpClient();
-
-    public static string BuildCulvertProgressBarChartUrl(
-        IEnumerable<PersonajeProgresoDto> progreso,
-        string nombrePersonaje)
+    public static string BuildCulvertProgressBarChartConfig(
+    IEnumerable<PersonajeProgresoDto> progreso,
+    string nombrePersonaje)
     {
         if (progreso == null)
             return string.Empty;
@@ -86,14 +87,14 @@ public static class ChartHelper
 
         var backgroundColors = ultimas
             .Select(x => x.CulvertScore == 0
-                ? "rgba(107, 114, 128, 0.45)"
-                : "rgba(147, 51, 234, 0.85)")
+                ? "rgba(75, 85, 99, 0.55)"
+                : "rgba(139, 92, 246, 0.92)")
             .ToList();
 
         var borderColors = ultimas
             .Select(x => x.CulvertScore == 0
-                ? "rgba(156, 163, 175, 0.85)"
-                : "rgba(168, 85, 247, 1)")
+                ? "rgba(148, 163, 184, 0.75)"
+                : "rgba(196, 181, 253, 1)")
             .ToList();
 
         var formattedLabels = ultimas
@@ -107,35 +108,47 @@ public static class ChartHelper
             {
                 labels,
                 datasets = new object[]
+        {
+            new
                 {
-                    new
+                    label = "Culvert Score",
+                    data = values,
+                    backgroundColor = backgroundColors,
+                    borderColor = borderColors,
+                    borderWidth = 2,
+
+                    // 🎯 SOLO ARRIBA
+                    borderRadius = new
                     {
-                        label = "Culvert Score",
-                        data = values,
-                        backgroundColor = backgroundColors,
-                        borderColor = borderColors,
-                        borderWidth = 2,
-                        borderRadius = 6,
-                        barThickness = 52,
-                        maxBarThickness = 52,
-                        categoryPercentage = 0.95,
-                        barPercentage = 1.0,
-                        datalabels = new
+                        topLeft = 10,
+                        topRight = 10,
+                        bottomLeft = 0,
+                        bottomRight = 0
+                    },
+                    borderSkipped = "bottom",
+
+                    // 🎨 FORMA MÁS PRO
+                    barThickness = 42,
+                    maxBarThickness = 42,
+                    categoryPercentage = 0.78,
+                    barPercentage = 0.92,
+
+                    datalabels = new
+                    {
+                        display = true,
+                        anchor = "end",
+                        align = "top",
+                        offset = 8,
+                        color = "#F9FAFB",
+                        font = new
                         {
-                            display = true,
-                            anchor = "end",
-                            align = "top",
-                            offset = 6,
-                            color = "#E5E7EB",
-                            font = new
-                            {
-                                size = 11,
-                                weight = "bold"
-                            },
-                            formatter = "__DATALABELS_FORMATTER__"
-                        }
+                            size = 12,
+                            weight = "bold"
+                        },
+                        formatter = "__DATALABELS_FORMATTER__"
                     }
                 }
+        }
             },
             options = new
             {
@@ -145,10 +158,10 @@ public static class ChartHelper
                 {
                     padding = new
                     {
-                        top = 20,
-                        right = 10,
-                        left = 10,
-                        bottom = 0
+                        top = 30,
+                        right = 16,
+                        left = 16,
+                        bottom = 8
                     }
                 },
                 plugins = new
@@ -158,18 +171,31 @@ public static class ChartHelper
                         display = true,
                         labels = new
                         {
-                            color = "#D1D5DB"
+                            color = "#E5E7EB",
+                            boxWidth = 14,
+                            boxHeight = 14,
+                            padding = 18,
+                            font = new
+                            {
+                                size = 12,
+                                weight = "bold"
+                            }
                         }
                     },
                     title = new
                     {
                         display = true,
-                        text = $"{nombrePersonaje} - últimas 10 semanas",
-                        color = "#E5E7EB",
+                        text = $"{nombrePersonaje} · últimas 10 semanas",
+                        color = "#F9FAFB",
                         font = new
                         {
-                            size = 18,
+                            size = 20,
                             weight = "bold"
+                        },
+                        padding = new
+                        {
+                            top = 8,
+                            bottom = 18
                         }
                     }
                 },
@@ -181,25 +207,44 @@ public static class ChartHelper
                         {
                             color = "#D1D5DB",
                             maxRotation = 0,
-                            minRotation = 0
+                            minRotation = 0,
+                            font = new
+                            {
+                                size = 11,
+                                weight = "bold"
+                            }
                         },
                         grid = new
                         {
-                            color = "rgba(255,255,255,0.08)"
+                            display = false
+                        },
+                        border = new
+                        {
+                            color = "rgba(255,255,255,0.10)"
                         }
                     },
                     y = new
                     {
                         beginAtZero = true,
-                        grace = "8%",
+                        grace = "18%",
                         ticks = new
                         {
                             color = "#D1D5DB",
+                            padding = 8,
+                            font = new
+                            {
+                                size = 11
+                            },
                             callback = "__Y_TICKS_CALLBACK__"
                         },
                         grid = new
                         {
-                            color = "rgba(255,255,255,0.08)"
+                            color = "rgba(255,255,255,0.06)",
+                            lineWidth = 1
+                        },
+                        border = new
+                        {
+                            color = "rgba(255,255,255,0.10)"
                         }
                     }
                 }
@@ -218,11 +263,8 @@ public static class ChartHelper
             "function(value) { if (value >= 1000000) return (value/1000000).toFixed(1).replace('.', ',') + 'M'; if (value >= 1000) return (value/1000).toFixed(1).replace('.', ',') + 'k'; return value; }"
         );
 
-        var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        return $"https://quickchart.io/chart?width=900&height=420&backgroundColor=%232b2d31&plugins=chartjs-plugin-datalabels&c={Uri.EscapeDataString(json)}&v={version}";
+        return json;
     }
-
     private static (int anio, int semana) RestarSemanas(int anio, int semana, int cantidad)
     {
         for (int i = 0; i < cantidad; i++)
@@ -237,7 +279,6 @@ public static class ChartHelper
 
         return (anio, semana);
     }
-
     private static (int anio, int semana) SumarUnaSemana(int anio, int semana)
     {
         semana++;
@@ -249,20 +290,46 @@ public static class ChartHelper
 
         return (anio, semana);
     }
-
-    public static async Task<Stream?> DownloadChartAsync(string chartUrl)
+    public static async Task<Stream?> DownloadChartAsync(string chartConfigJson)
     {
         try
         {
-            var bytes = await _http.GetByteArrayAsync(chartUrl);
+            var payload =
+            "{"
+            + "\"width\":900,"
+            + "\"height\":420,"
+            + "\"backgroundColor\":\"#2b2d31\","
+            + "\"format\":\"png\","
+            + "\"version\":\"4\","
+            + "\"chart\":" + JsonSerializer.Serialize(chartConfigJson)
+            + "}";
+
+            using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            using var response = await _http.PostAsync("https://quickchart.io/chart", content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[ChartHelper] Error HTTP {(int)response.StatusCode}: {body}");
+                return null;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+
+            if (bytes == null || bytes.Length == 0)
+            {
+                Console.WriteLine("[ChartHelper] Imagen vacía.");
+                return null;
+            }
+
             return new MemoryStream(bytes);
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ChartHelper] Exception: {ex}");
             return null;
         }
     }
-
     private static string FormatCompact(long value)
     {
         if (value >= 1_000_000)

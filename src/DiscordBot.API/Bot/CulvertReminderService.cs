@@ -29,10 +29,15 @@ public class CulvertReminderService : BackgroundService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CulvertReminder] Error: {ex.Message}");
+                Console.WriteLine($"[CulvertReminder] Error general: {ex.Message}");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            var now = DateTime.UtcNow;
+            var nextMinute = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Utc)
+                .AddMinutes(1);
+
+            var delay = nextMinute - now;
+            await Task.Delay(delay, stoppingToken);
         }
     }
 
