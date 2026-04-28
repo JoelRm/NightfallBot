@@ -320,7 +320,7 @@ public class PersonajeRepository : IPersonajeRepository
         return new PersonajeResumenDto
         {
             NombrePersonaje = personaje.NombrePersonaje,
-            PuntosActuales = registros.Sum(x => x.PuntosGanados),
+            PuntosActuales = personaje.PuntosActuales,
             MonedasActuales = registros.Sum(x => x.MonedasGanadas),
             Participaciones = registros.Count(x => x.Participa),
             PromedioCulvert = registros.Any() ? Math.Round((decimal)registros.Average(x => x.CulvertScore), 2) : 0,

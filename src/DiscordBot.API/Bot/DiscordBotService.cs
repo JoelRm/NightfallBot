@@ -16,7 +16,8 @@ public class DiscordBotService : BackgroundService
     private readonly DiscordSocketClient _client;
     private readonly IConfiguration _configuration;
     private readonly IServiceProvider _serviceProvider;
-
+    private readonly Dictionary<ulong, (DateTime Fecha, List<(string Nombre, long Score)> Data)> _cachePreview
+    = new();
     public DiscordBotService(
         IConfiguration configuration,
         IServiceProvider serviceProvider,
@@ -268,6 +269,17 @@ public class DiscordBotService : BackgroundService
             if (content.StartsWith("!culvert0", StringComparison.OrdinalIgnoreCase))
             {
                 await ProcesarCulvertCeroAsync(message, content);
+                return;
+            }
+            if (content.StartsWith("!culverttxt"))
+            {
+                await ProcesarCulvertTxtAsync(message);
+                return;
+            }
+
+            if (content.StartsWith("!culvertconfirmar"))
+            {
+                await ConfirmarCulvertDesdeCacheAsync(message);
                 return;
             }
         }
@@ -1063,6 +1075,166 @@ public class DiscordBotService : BackgroundService
         await message.Channel.SendMessageAsync(embed: embed);
     }
 
+    private async Task ProcesarCulvertTxtAsync(SocketMessage message)
+    {
+        if (!message.Attachments.Any())
+        {
+            await message.Channel.SendMessageAsync("❌ Adjunta un archivo .txt.");
+            return;
+        }
+
+        var archivo = message.Attachments.FirstOrDefault(x =>
+            x.Filename.EndsWith(".txt", StringComparison.OrdinalIgnoreCase));
+
+        if (archivo == null)
+        {
+            await message.Channel.SendMessageAsync("❌ El archivo debe ser .txt.");
+            return;
+        }
+
+        using var http = new HttpClient();
+        var contenido = await http.GetStringAsync(archivo.Url);
+
+        var resultados = ParsearCulvertTxt(contenido);
+
+        if (!resultados.Any())
+        {
+            await message.Channel.SendMessageAsync("⚠️ No se detectaron datos.");
+            return;
+        }
+
+        // 🔥 Guardar en cache
+        _cachePreview[message.Author.Id] = (DateTime.UtcNow, resultados);
+
+        var preview = string.Join("\n", resultados
+            .Take(25)
+            .Select(x => $"• {x.Nombre} → {x.Score:N0}"));
+
+        await message.Channel.SendMessageAsync(
+            $"📄 **Preview Culvert**\n" +
+            $"Detectados: **{resultados.Count}**\n\n" +
+            $"{preview}\n\n" +
+            $"👉 Usa `!culvertconfirmar` para registrar");
+    }
+
+    private async Task ConfirmarCulvertDesdeCacheAsync(SocketMessage message)
+    {
+        if (!_cachePreview.TryGetValue(message.Author.Id, out var cache))
+        {
+            await message.Channel.SendMessageAsync("❌ No hay datos para confirmar.");
+            return;
+        }
+
+        // Expira en 5 minutos
+        if ((DateTime.UtcNow - cache.Fecha).TotalMinutes > 5)
+        {
+            _cachePreview.Remove(message.Author.Id);
+            await message.Channel.SendMessageAsync("⏰ El preview expiró.");
+            return;
+        }
+
+        var lista = cache.Data;
+
+        var (anio, semana, fechaUtc, _) = WeekHelper.ObtenerSemanaActualPeru();
+
+        using var scope = _serviceProvider.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<IPersonajeRepository>();
+
+        var procesados = new List<string>();
+        var noProcesados = new List<string>();
+
+        foreach (var item in lista)
+        {
+            try
+            {
+                var resultado = await repo.RegistrarCulvertSemanalAsync(
+                    item.Nombre,
+                    item.Score,
+                    message.Author.Username,
+                    anio,
+                    semana,
+                    fechaUtc);
+
+                if (resultado is null)
+                {
+                    noProcesados.Add($"{item.Nombre} → no encontrado");
+                    continue;
+                }
+
+                procesados.Add(
+                    $"{resultado.NombrePersonaje} → {resultado.CulvertScore:N0} | +{resultado.PuntosGanados} pts | +{resultado.MonedasGanadas} monedas");
+            }
+            catch (Exception ex)
+            {
+                var detalle = ex.InnerException?.Message ?? ex.Message;
+                noProcesados.Add($"{item.Nombre} → error: {detalle}");
+            }
+        }
+
+        var respuesta =
+            $"✅ **Culverts registrados**: {procesados.Count}\n" +
+            $"📅 Semana: {semana}/{anio}";
+
+        if (procesados.Any())
+        {
+            respuesta += "\n\n**Procesados:**\n" +
+                         string.Join("\n", procesados.Take(20));
+        }
+
+        if (noProcesados.Any())
+        {
+            respuesta += "\n\n❌ **No procesados:**\n" +
+                         string.Join("\n", noProcesados.Take(20));
+        }
+
+        await message.Channel.SendMessageAsync(respuesta);
+
+        // 🔥 limpiar cache
+        _cachePreview.Remove(message.Author.Id);
+    }
+    
+    private List<(string Nombre, long Score)> ParsearCulvertTxt(string contenido)
+    {
+        var resultados = new List<(string Nombre, long Score)>();
+
+        if (string.IsNullOrWhiteSpace(contenido))
+            return resultados;
+
+        var lineas = contenido.Split(
+            new[] { "\r\n", "\n" },
+            StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var lineaRaw in lineas)
+        {
+            var linea = lineaRaw.Trim();
+
+            if (string.IsNullOrWhiteSpace(linea))
+                continue;
+
+            // Ignorar basura tipo ***
+            if (linea.StartsWith("*") || linea.StartsWith("!"))
+                continue;
+
+            var partes = linea.Split('|', StringSplitOptions.TrimEntries);
+
+            if (partes.Length != 2)
+                continue;
+
+            var nombre = partes[0].Trim();
+            var scoreTexto = partes[1].Trim();
+
+            // 🔥 Limpia por si viene con comas o espacios
+            var limpio = new string(scoreTexto.Where(char.IsDigit).ToArray());
+
+            if (!long.TryParse(limpio, out var score))
+                continue;
+
+            resultados.Add((nombre, score));
+        }
+
+        return resultados;
+    }
+    
     private static RegistroInput ParsearLineaRegistro(string linea)
     {
         if (string.IsNullOrWhiteSpace(linea))

@@ -18,7 +18,7 @@ RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Retries "5";\n' > /etc/apt/apt.
     sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources && \
     sed -i 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
 
-# Dependencias Chromium
+# Dependencias Chromium + SkiaSharp + Fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 \
     libatk1.0-0 \
@@ -38,6 +38,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-xcb1 \
     libxcb-dri3-0 \
     fonts-liberation \
+    libfontconfig1 \
+    libfreetype6 \
+    fontconfig \
+    fonts-dejavu-core \
     wget \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*

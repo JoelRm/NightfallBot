@@ -28,67 +28,21 @@ public class GuildDashboardService : IGuildDashboardService
 
         canvas.Clear(new SKColor(16, 18, 24));
 
-        var titlePaint = new SKPaint
-        {
-            Color = SKColors.White,
-            TextSize = 38,
-            IsAntialias = true,
-            Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
-        };
+        using var titlePaint = CreatePaint(SKColors.White, 38, true);
+        using var subTitlePaint = CreatePaint(new SKColor(180, 190, 210), 22);
+        using var cardTitlePaint = CreatePaint(SKColors.White, 24, true);
+        using var textPaint = CreatePaint(new SKColor(225, 230, 240), 20);
+        using var smallPaint = CreatePaint(new SKColor(180, 190, 210), 18);
+        using var footerPaint = CreatePaint(new SKColor(120, 130, 145), 16);
 
-        var subTitlePaint = new SKPaint
-        {
-            Color = new SKColor(180, 190, 210),
-            TextSize = 22,
-            IsAntialias = true,
-            Typeface = SKTypeface.FromFamilyName("Arial")
-        };
-
-        var cardTitlePaint = new SKPaint
-        {
-            Color = SKColors.White,
-            TextSize = 24,
-            IsAntialias = true,
-            Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold)
-        };
-
-        var textPaint = new SKPaint
-        {
-            Color = new SKColor(225, 230, 240),
-            TextSize = 20,
-            IsAntialias = true,
-            Typeface = SKTypeface.FromFamilyName("Arial")
-        };
-
-        var smallPaint = new SKPaint
-        {
-            Color = new SKColor(180, 190, 210),
-            TextSize = 18,
-            IsAntialias = true,
-            Typeface = SKTypeface.FromFamilyName("Arial")
-        };
-
-        var accentPaint = new SKPaint
-        {
-            Color = new SKColor(88, 166, 255),
-            IsAntialias = true
-        };
-
-        var greenPaint = new SKPaint
-        {
-            Color = new SKColor(46, 204, 113),
-            IsAntialias = true
-        };
-
-        var cardPaint = new SKPaint
-        {
-            Color = new SKColor(27, 31, 42),
-            IsAntialias = true
-        };
+        using var accentPaint = new SKPaint { Color = new SKColor(88, 166, 255), IsAntialias = true };
+        using var greenPaint = new SKPaint { Color = new SKColor(46, 204, 113), IsAntialias = true };
+        using var cardPaint = new SKPaint { Color = new SKColor(27, 31, 42), IsAntialias = true };
 
         canvas.DrawText("Nightfall Dashboard", 40, 60, titlePaint);
         canvas.DrawText($"Semana {semana}/{anio}", 40, 95, subTitlePaint);
 
+        // Cards superiores
         DrawCard(canvas, 40, 130, 300, 120, cardPaint);
         DrawCard(canvas, 370, 130, 300, 120, cardPaint);
         DrawCard(canvas, 700, 130, 300, 120, cardPaint);
@@ -106,13 +60,14 @@ public class GuildDashboardService : IGuildDashboardService
         canvas.DrawText("Promedio", 1050, 170, smallPaint);
         canvas.DrawText(stats.PromedioCulvert.ToString("N0"), 1050, 215, titlePaint);
 
+        // Cards principales
         DrawCard(canvas, 40, 290, 620, 540, cardPaint);
-        DrawCard(canvas, 700, 290, 620, 260, cardPaint);
-        DrawCard(canvas, 700, 570, 620, 260, cardPaint);
+        DrawCard(canvas, 700, 290, 620, 390, cardPaint);
+        DrawCard(canvas, 700, 700, 620, 130, cardPaint);
 
         canvas.DrawText("Top Puntos", 60, 330, cardTitlePaint);
         canvas.DrawText("Top Culvert Semanal", 720, 330, cardTitlePaint);
-        canvas.DrawText("Faltantes", 720, 610, cardTitlePaint);
+        canvas.DrawText("Faltantes", 720, 735, cardTitlePaint);
 
         DrawHorizontalBars(
             canvas,
@@ -121,35 +76,15 @@ public class GuildDashboardService : IGuildDashboardService
             60, 360, 560,
             accentPaint, textPaint, smallPaint);
 
-        DrawHorizontalBars(
+        DrawHorizontalBarsCompact(
             canvas,
             topCulvert.Select(x => x.NombrePersonaje).ToList(),
             topCulvert.Select(x => (double)x.Valor).ToList(),
             720, 360, 560,
-            greenPaint, textPaint, smallPaint);
+            greenPaint, textPaint, smallPaint,
+            mostrarPorcentaje: true);
 
-        float faltantesY = 650;
-        var faltantesMostrar = faltantes.Take(8).ToList();
-
-        if (!faltantesMostrar.Any())
-        {
-            canvas.DrawText("Todos registraron esta semana", 720, faltantesY, textPaint);
-        }
-        else
-        {
-            foreach (var nombre in faltantesMostrar)
-            {
-                canvas.DrawText($"• {nombre}", 720, faltantesY, textPaint);
-                faltantesY += 30;
-            }
-        }
-
-        var footerPaint = new SKPaint
-        {
-            Color = new SKColor(120, 130, 145),
-            TextSize = 16,
-            IsAntialias = true
-        };
+        DrawFaltantes(canvas, faltantes, 720, 770, textPaint);
 
         canvas.DrawText("Generated by NightfallBot", 40, 875, footerPaint);
 
@@ -157,10 +92,24 @@ public class GuildDashboardService : IGuildDashboardService
 
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-        using var stream = File.OpenWrite(outputPath);
+        using var stream = File.Open(outputPath, FileMode.Create, FileAccess.Write);
+
         data.SaveTo(stream);
 
         return outputPath;
+    }
+
+    private static SKPaint CreatePaint(SKColor color, float size, bool bold = false)
+    {
+        return new SKPaint
+        {
+            Color = color,
+            TextSize = size,
+            IsAntialias = true,
+            Typeface = SKTypeface.FromFamilyName(
+                "Arial",
+                bold ? SKFontStyle.Bold : SKFontStyle.Normal)
+        };
     }
 
     private static void DrawCard(SKCanvas canvas, float x, float y, float width, float height, SKPaint paint)
@@ -193,6 +142,12 @@ public class GuildDashboardService : IGuildDashboardService
         const float labelWidth = 170;
         const float valueWidth = 90;
 
+        using var bgPaint = new SKPaint
+        {
+            Color = new SKColor(44, 52, 68),
+            IsAntialias = true
+        };
+
         for (int i = 0; i < labels.Count; i++)
         {
             var rowY = y + (i * rowHeight);
@@ -201,13 +156,7 @@ public class GuildDashboardService : IGuildDashboardService
             var barAreaWidth = width - labelWidth - valueWidth - 20;
             var barWidth = (float)(values[i] / max) * barAreaWidth;
 
-            var bgPaint = new SKPaint
-            {
-                Color = new SKColor(44, 52, 68),
-                IsAntialias = true
-            };
-
-            canvas.DrawText(labels[i], x, rowY + 25, textPaint);
+            canvas.DrawText(TruncateText(labels[i], 15), x, rowY + 25, textPaint);
 
             canvas.DrawRoundRect(
                 new SKRoundRect(new SKRect(barX, barY, barX + barAreaWidth, barY + 24), 8, 8),
@@ -219,5 +168,101 @@ public class GuildDashboardService : IGuildDashboardService
 
             canvas.DrawText(values[i].ToString("N0"), barX + barAreaWidth + 15, rowY + 30, smallPaint);
         }
+    }
+
+    private static void DrawHorizontalBarsCompact(
+        SKCanvas canvas,
+        List<string> labels,
+        List<double> values,
+        float x,
+        float y,
+        float width,
+        SKPaint barPaint,
+        SKPaint textPaint,
+        SKPaint smallPaint,
+        bool mostrarPorcentaje = false)
+    {
+        if (!labels.Any() || !values.Any())
+        {
+            canvas.DrawText("Sin datos", x, y + 30, textPaint);
+            return;
+        }
+
+        var max = values.Max();
+        if (max <= 0) max = 1;
+
+        var total = values.Sum();
+        if (total <= 0) total = 1;
+
+        const float rowHeight = 62;
+        const float labelWidth = 170;
+        const float valueWidth = 150;
+
+        using var bgPaint = new SKPaint
+        {
+            Color = new SKColor(44, 52, 68),
+            IsAntialias = true
+        };
+
+        for (int i = 0; i < labels.Count; i++)
+        {
+            var rowY = y + (i * rowHeight);
+            var barX = x + labelWidth;
+            var barY = rowY + 12;
+            var barAreaWidth = width - labelWidth - valueWidth - 20;
+            var barWidth = (float)(values[i] / max) * barAreaWidth;
+
+            canvas.DrawText(TruncateText(labels[i], 15), x, rowY + 25, textPaint);
+
+            canvas.DrawRoundRect(
+                new SKRoundRect(new SKRect(barX, barY, barX + barAreaWidth, barY + 24), 8, 8),
+                bgPaint);
+
+            canvas.DrawRoundRect(
+                new SKRoundRect(new SKRect(barX, barY, barX + barWidth, barY + 24), 8, 8),
+                barPaint);
+
+            var porcentaje = values[i] / total * 100;
+
+            var valorTexto = mostrarPorcentaje
+                ? $"{values[i]:N0} ({porcentaje:0.0}%)"
+                : values[i].ToString("N0");
+
+            canvas.DrawText(valorTexto, barX + barAreaWidth + 15, rowY + 30, smallPaint);
+        }
+    }
+
+    private static void DrawFaltantes(
+        SKCanvas canvas,
+        IEnumerable<string> faltantes,
+        float x,
+        float y,
+        SKPaint textPaint)
+    {
+        var lista = faltantes.Take(3).ToList();
+
+        if (!lista.Any())
+        {
+            canvas.DrawText("Todos registraron esta semana", x, y, textPaint);
+            return;
+        }
+
+        float currentY = y;
+
+        foreach (var nombre in lista)
+        {
+            canvas.DrawText($"• {TruncateText(nombre, 28)}", x, currentY, textPaint);
+            currentY += 30;
+        }
+    }
+
+    private static string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        return text.Length <= maxLength
+            ? text
+            : text[..(maxLength - 3)] + "...";
     }
 }
